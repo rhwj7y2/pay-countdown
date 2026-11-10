@@ -80,6 +80,7 @@
 
     <section class="card form stock" aria-label="股票賠錢區">
       <h2>📉 股票賠錢區</h2>
+      <p class="taiex" id="taiex" hidden>大盤指數：<span id="taiex-val">—</span></p>
       <div class="field">
         <label for="loss">賠了多少錢</label>
         <input id="loss" type="number" inputmode="decimal" min="0" step="any" placeholder="例如 100000" autocomplete="off">
@@ -103,8 +104,16 @@
           <input id="amount" type="number" inputmode="decimal" min="0" step="any" placeholder="例如 50000" autocomplete="off">
         </div>
         <div class="field">
-          <label for="symbol">貨幣符號</label>
-          <input id="symbol" type="text" maxlength="8" autocomplete="off">
+          <label for="symbol">貨幣</label>
+          <select id="symbol">
+            <option value="NT$">新台幣 NT$</option>
+            <option value="US$">美元 US$</option>
+            <option value="¥">日圓 ¥</option>
+            <option value="₩">韓元 ₩</option>
+            <option value="€">歐元 €</option>
+            <option value="£">英鎊 £</option>
+            <option value="HK$">港幣 HK$</option>
+          </select>
         </div>
         <div class="field">
           <label for="start-h">上班時間</label>

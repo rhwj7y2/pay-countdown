@@ -352,3 +352,14 @@ test("formatNumber：兩位小數（給每小時／每分鐘／每秒用）", ()
   assert.equal(C.formatNumber(1234.005, 2), "1,234.01");
   assert.equal(C.formatNumber(5, 0), "5");
 });
+
+test("formatIndex：大盤指數 + 漲跌幅", () => {
+  assert.equal(C.formatIndex(42711.92, 41661.70), "42711.9(+2.5%)");   // 漲 2.52%
+  assert.equal(C.formatIndex(40000, 41661.70), "40000.0(-4.0%)");      // 跌 3.99%
+  assert.equal(C.formatIndex(41661.70, 41661.70), "41661.7(0.0%)");    // 平盤：沒有 + 也沒有 -
+  assert.equal(C.formatIndex(41662, 41661.70), "41662.0(0.0%)");       // 漲不到 0.05% → 四捨五入是 0.0，不帶 +
+  assert.equal(C.formatIndex(100000, 50000), "100000.0(+100.0%)");     // 不加千分位
+  assert.equal(C.formatIndex(NaN, 100), "—");
+  assert.equal(C.formatIndex(100, 0), "—");                            // 前日收盤 0 不能當分母
+  assert.equal(C.formatIndex(null, 100), "—");
+});

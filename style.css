@@ -237,7 +237,7 @@ body {
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
 .field { min-width: 0; }
 .field label, .seg legend { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 4px; padding: 0; }
-input[type="number"], input[type="time"], input[type="text"] {
+input[type="number"], input[type="time"], input[type="text"], #symbol {
   width: 100%; min-height: 46px;  /* 手機好點 */
   font: inherit; font-size: 1rem; color: var(--text);
   background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
@@ -253,6 +253,10 @@ input[type="number"], input[type="time"], input[type="text"] {
 .time select:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .time select:disabled { opacity: .45; }
 .time .colon { font-weight: 700; color: var(--muted); }
+/* 股票賠錢區：今日大盤指數（台股習慣：漲紅、跌綠） */
+.taiex { margin: 0 0 14px; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.taiex .up { color: var(--up); }
+.taiex .down { color: var(--neon); }
 #field-days { grid-column: 1 / -1; }  /* 標題較長，獨占一整列才不會折行 */
 /* 每月工作天數：不要右邊的上下小箭頭 */
 #days { -moz-appearance: textfield; appearance: textfield; }

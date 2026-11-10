@@ -94,7 +94,9 @@
     for (var i = 0; i < typeRadios.length; i++) typeRadios[i].checked = typeRadios[i].value === s.type;
     el.amount.value = s.amount; el.start.value = s.start; el.end.value = s.end;
     el.lunchOn.checked = s.lunchOn; el.lunchStart.value = s.lunchStart; el.lunchEnd.value = s.lunchEnd;
-    el.days.value = s.days; el.symbol.value = s.symbol; el.loss.value = s.loss;
+    el.days.value = s.days; el.loss.value = s.loss;
+    el.symbol.value = s.symbol;
+    if (el.symbol.value !== s.symbol) el.symbol.value = DEFAULTS.symbol;  // 舊版自己打的符號不在選單裡 → 回到新台幣
   }
 
   /* 把設定轉成計算用的數字；同時找出第一個要提示使用者的問題 */
@@ -276,6 +278,39 @@
     el.amount.setAttribute("aria-invalid", amountBad ? "true" : "false");
 
     render();
+  }
+
+  /* ---------- 今日大盤指數（股票賠錢區） ----------
+     資料來自自己的 Cloudflare Worker（worker/taiex-worker.js，替網頁去問證交所）。
+     TAIEX_URL 留空 = 還沒設定 → 這一行整個不顯示。盤中每 30 秒更新一次，分頁在背景就暫停 */
+  var TAIEX_URL = "https://taiex.kop030183.workers.dev/";
+  var taiexEl = $("taiex"), taiexVal = $("taiex-val");
+  var taiexAt = 0, taiexBusy = false;
+
+  function showTaiex(d) {
+    var has = typeof d.price === "number";
+    setText(taiexVal, has ? C.formatIndex(d.price, d.prev) : "尚未開盤");
+    // 台股習慣：漲紅、跌綠
+    taiexVal.className = has && d.price > d.prev ? "up" : has && d.price < d.prev ? "down" : "";
+  }
+
+  function loadTaiex() {
+    if (!TAIEX_URL || taiexBusy || document.hidden) return;
+    taiexBusy = true;
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
+    fetch(TAIEX_URL, ctl ? { signal: ctl.signal, cache: "no-store" } : { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (d) { if (d && typeof d.prev === "number") { taiexAt = Date.now(); showTaiex(d); } })
+      .catch(function () { /* 抓失敗就保留上一筆數字，30 秒後再試 */ })
+      .then(function () { clearTimeout(timer); taiexBusy = false; });
+  }
+
+  if (TAIEX_URL) {
+    taiexEl.hidden = false;
+    loadTaiex();
+    setInterval(loadTaiex, 30000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - taiexAt > 30000) loadTaiex(); });
   }
 
   /* ---------- 啟動 ---------- */

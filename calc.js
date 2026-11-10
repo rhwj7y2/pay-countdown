@@ -142,6 +142,15 @@
     return sym ? sym + " " + n : n;
   }
 
+  /* 大盤指數顯示：價格 + 漲跌幅 → "42711.9(+2.5%)"。價格不加千分位、小數 1 位；漲幅有 +、跌幅有 -，四捨五入後是 0 就不帶符號。
+     prev 是前一個交易日的收盤；價格或 prev 不是有效數字（prev 還不能是 0）→ "—" */
+  function formatIndex(price, prev) {
+    if (typeof price !== "number" || typeof prev !== "number" || !isFinite(price) || !isFinite(prev) || prev <= 0) return "—";
+    var pct = (price - prev) / prev * 100;
+    var p = formatNumber(pct, 1);
+    return formatNumber(price, 1).replace(/,/g, "") + "(" + (pct > 0 && p !== "0.0" ? "+" : "") + p + "%)";
+  }
+
   /* 這一天是不是工作日（週一～週五；不知道國定假日，所以假日照算工作日）。month0 是 0～11（跟 JS 的 Date 一樣） */
   function isWorkday(year, month0, day) {
     var wd = new Date(year, month0, day).getDay();  // 0 = 週日、6 = 週六
@@ -196,6 +205,7 @@
     workedSeconds: workedSeconds,
     formatCountdown: formatCountdown,
     formatNumber: formatNumber,
+    formatIndex: formatIndex,
     formatMoney: formatMoney
   };
 
