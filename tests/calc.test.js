@@ -217,6 +217,22 @@ test("workdaysPassed：不含當天，只算週一到週五", () => {
   assert.equal(C.workdaysPassed(2026, 10, 99), 21, "超過月底不會多算");
 });
 
+test("workdaysInMonth：該月有幾個週一到週五", () => {
+  assert.equal(C.workdaysInMonth(2026, 10), 21, "2026 年 11 月 = 21");
+  assert.equal(C.workdaysInMonth(2026, 11), 23, "2026 年 12 月 = 23");
+  assert.equal(C.workdaysInMonth(2026, 1), 20, "2026 年 2 月 = 20（28 天）");
+  assert.equal(C.workdaysInMonth(2024, 1), 21, "2024 年 2 月（閏年 29 天）= 21");
+});
+
+test("月薪依該月工作天數算日薪：同樣 50,000，11 月（21 天）比 12 月（23 天）日薪高", () => {
+  const nov = C.perSecondPay("monthly", 50000, C.workdaysInMonth(2026, 10), WORK) * WORK;
+  const dec = C.perSecondPay("monthly", 50000, C.workdaysInMonth(2026, 11), WORK) * WORK;
+  near(nov, 50000 / 21, 1e-9);
+  near(dec, 50000 / 23, 1e-9);
+  assert.ok(nov > dec);
+  near(nov * C.workdaysInMonth(2026, 10), 50000, 1e-6, "整個月做滿 = 月薪");
+});
+
 test("monthEarned：已過工作日 × 日薪 + 今天", () => {
   assert.equal(C.monthEarned(2000, 7, 500, true), 14500);
   assert.equal(C.monthEarned(2000, 7, 500, false), 14000, "今天不是工作日 → 不算今天");

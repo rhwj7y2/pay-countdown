@@ -7,7 +7,7 @@
   var KEY = "paycountdown-settings";  // 輸入資料；主題另外存在 paycountdown-theme（在 index.html 裡處理）
   var DEFAULTS = {
     type: "monthly", amount: "0", start: "09:00", end: "18:00",
-    lunchOn: true, lunchStart: "12:00", lunchEnd: "13:00", days: "22", symbol: "NT$", loss: ""
+    lunchOn: true, lunchStart: "12:00", lunchEnd: "13:00", days: "", symbol: "NT$", loss: ""  /* days 留空 = 自動用「本月實際的工作天數」 */
   };
 
   function $(id) { return document.getElementById(id); }
@@ -50,8 +50,8 @@
     bar: $("bar"), barFill: $("bar-fill"), barText: $("bar-text"),
     earnMonth: $("earn-month"),
     recover: $("recover"), recoverBar: $("recover-bar"), recoverFill: $("recover-fill"), recoverText: $("recover-text"),
-    loss: $("loss"), lossDays: $("loss-days"),
-    rateH: $("rate-h"), rateM: $("rate-m"), rateD: $("rate-d"), hint: $("hint")
+    loss: $("loss"), lossDays: $("loss-days"), lossLabel: $("loss-label"),
+    rateH: $("rate-h"), rateD: $("rate-d"), hint: $("hint")
   };
   var typeRadios = document.querySelectorAll('input[name="type"]');
 
@@ -68,6 +68,7 @@
             if (typeof o[key] === typeof DEFAULTS[key]) s[key] = o[key];
           }
           if (s.type !== "monthly" && s.type !== "hourly") s.type = "monthly";
+          if (s.days === "22") s.days = "";  // 舊版預設值 22 → 改成自動
         }
       }
     } catch (e) { /* 讀不到（私密模式、資料壞掉）→ 用預設值 */ }
@@ -116,7 +117,12 @@
 
     var amountRaw = String(s.amount).trim();
     m.amount = amountRaw === "" ? NaN : Number(amountRaw);
-    m.days = String(s.days).trim() === "" ? NaN : Number(s.days);
+    // 每月工作天數：留空 = 自動，用「本月」實際有幾個工作日（11 月 21 天、12 月 23 天…），月份換了會自動跟著換
+    var today = new Date(Date.now());
+    m.autoDays = C.workdaysInMonth(today.getFullYear(), today.getMonth());
+    m.monthKey = today.getFullYear() * 12 + today.getMonth();
+    m.useAuto = String(s.days).trim() === "";
+    m.days = m.useAuto ? m.autoDays : Number(s.days);
     m.perSec = C.perSecondPay(s.type, m.amount, m.days, m.workSec);
     var lossRaw = String(s.loss).trim();
     m.loss = lossRaw === "" ? NaN : Number(lossRaw);  // 空白或負數時，賠錢區顯示「—」
@@ -138,8 +144,19 @@
     return false;
   }
 
+  /* 工作天數欄留空時顯示的灰字，例如「預設( 11 月有 21 個工作天)」 */
+  function daysPlaceholder(m) {
+    return "預設( " + (m.monthKey % 12 + 1) + " 月有 " + m.autoDays + " 個工作天)";
+  }
+
   function render() {
     if (!model) return;
+    // 工作天數是自動的、而且月份已經換了（例如跨到 12 月）→ 重新算
+    var nowD = new Date(Date.now());
+    if (model.useAuto && model.monthKey !== nowD.getFullYear() * 12 + nowD.getMonth()) {
+      model = buildModel(readForm());
+      el.days.placeholder = daysPlaceholder(model);
+    }
     var m = model;
     var nowSec = C.secondsOfDay(new Date(Date.now()));  // 每次都重新讀現在時間
     var p = m.timeOk ? C.phaseAt(nowSec, m.start, m.end) : { phase: "invalid", remaining: NaN };
@@ -175,7 +192,11 @@
     el.earnMonth.classList.toggle("down", payOk && monthNet < 0);
     // 股票賠錢區：用本月賺的錢去抵賠的，估算還要幾個工作天
     var rec = C.recovery(m.loss, daily, monthEarn);
-    setText(el.lossDays, isFinite(rec.days) ? C.formatNumber(rec.days, 2) + " 天" : "—");
+    // 沒填賠的金額（空白或 0）→ 顯示「不錯喔 沒有賠錢」，不顯示天數
+    var noLoss = String(el.loss.value).trim() === "" || m.loss === 0;
+    el.lossLabel.hidden = noLoss;
+    el.lossDays.classList.toggle("ok", noLoss);
+    setText(el.lossDays, noLoss ? "不錯喔 沒有賠錢" : (isFinite(rec.days) ? C.formatNumber(rec.days, 2) + " 天" : "—"));
 
     // 把股票賺回來的進度條：只有填了賠的金額才出現；百分比 = 本月已賺回 ÷ 賠的金額（0～100%）
     // 本月總共賺了變成正數（已經賺回來）就不用再顯示
@@ -200,7 +221,6 @@
 
     // 每小時／每分鐘／每秒
     setText(el.rateH, payOk ? C.formatMoney(m.perSec * 3600, m.symbol, 2) : "—");
-    setText(el.rateM, payOk ? C.formatMoney(m.perSec * 60, m.symbol, 2) : "—");
     setText(el.rateD, payOk ? C.formatMoney(m.perSec * m.workSec, m.symbol, 2) : "—");  // 每天 = 一個工作天（扣掉午休）賺的
 
     // 分頁標題也跟著倒數
@@ -247,6 +267,7 @@
     el.amountLabel.textContent = hourly ? "時薪" : "月薪";
     el.amount.placeholder = hourly ? "例如 200" : "例如 50000";
     el.fieldDays.hidden = hourly;
+    el.days.placeholder = daysPlaceholder(model);
     el.lunchStart.disabled = el.lunchEnd.disabled = !s.lunchOn;
 
     el.hint.hidden = !model.hint;
@@ -267,7 +288,7 @@
   function frame() { render(); requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
   // 分頁在背景時瀏覽器會暫停 requestAnimationFrame，用較慢的計時器讓分頁標題繼續更新
-  setInterval(function () { if (document.hidden) render(); }, 1000);
+  setInterval(render, 1000);  // （畫面本來就在更新時，這個只是多算一次，不會有差別）
   // 分頁從背景切回來、電腦睡眠醒來：立刻用現在時間重算，不等下一次 setInterval
   document.addEventListener("visibilitychange", render);
   window.addEventListener("focus", render);

@@ -73,9 +73,7 @@
 
       <dl class="rates" id="rates">
         <div><dt>每天</dt><dd id="rate-d">—</dd></div>
-        <div><dt>每小時</dt><dd id="rate-h">—</dd></div>
-        <div><dt>每分鐘</dt><dd id="rate-m">—</dd></div>
-      </dl>
+        <div><dt>每小時</dt><dd id="rate-h">—</dd></div>      </dl>
 
       <p class="hint" id="hint" role="status" hidden></p>
     </section>
@@ -86,7 +84,7 @@
         <label for="loss">賠了多少錢</label>
         <input id="loss" type="number" inputmode="decimal" min="0" step="any" placeholder="例如 100000" autocomplete="off">
       </div>
-      <p class="loss-label">只靠工作賺回來，還要約</p>
+      <p class="loss-label" id="loss-label">只靠工作賺回來，還要約</p>
       <div class="loss-days" id="loss-days" aria-live="off">—</div>
     </section>
 
@@ -118,7 +116,7 @@
         </div>
         <div class="field" id="field-days">
           <label for="days">每月工作天數</label>
-          <input id="days" type="number" inputmode="numeric" min="1" max="31" step="1" value="22">
+          <input id="days" type="number" inputmode="numeric" min="1" max="31" step="1">
         </div>
       </div>
 

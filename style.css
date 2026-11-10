@@ -175,7 +175,7 @@ body {
 .recover .bar-fill { background: var(--neon); }  /* 把股票賺回來的進度條用螢光綠（賺回來變正數之後整條就不顯示） */
 .bar-text { margin: 6px 0 0; font-size: .9rem; color: var(--muted); }
 
-.rates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+.rates { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0; }
 .rates > div { background: var(--accent-soft); border: 1px solid var(--line); border-radius: 12px; padding: 8px 4px; min-width: 0; }
 .rates dt { font-size: .8rem; color: var(--muted); }
 .rates dd {
@@ -184,6 +184,13 @@ body {
   white-space: nowrap;  /* 「NT$ 1,136.36」不要拆成兩行 */
 }
 .rates > div { padding-left: 2px; padding-right: 2px; }
+/* 手機（窄螢幕）：每天、每小時、每分鐘各佔一整行，標題在左、金額在右，金額再大也不會擠到跑版 */
+@media (max-width: 500px) {
+  .rates { grid-template-columns: 1fr; gap: 6px; }
+  .rates > div { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; }
+  .rates dt { font-size: .9rem; }
+  .rates dd { font-size: 1rem; }
+}
 
 /* ---------- 全螢幕：只放大倒數與金額（其餘藏起來） ---------- */
 .board { position: relative; }
@@ -208,6 +215,7 @@ body {
 
 /* ---------- 股票賠錢區 ---------- */
 .stock { text-align: center; }
+.loss-days.ok { font-family: inherit; font-size: clamp(1.2rem, 6vw, 1.7rem); letter-spacing: .04em; margin-top: 8px; }
 .stock h2 { text-align: left; }
 .stock .field { text-align: left; margin-bottom: 14px; }
 .loss-label { margin: 0; color: var(--muted); font-size: .95rem; letter-spacing: .06em; }

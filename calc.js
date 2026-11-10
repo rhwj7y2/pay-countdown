@@ -156,6 +156,11 @@
     return n;
   }
 
+  /* 這個月一共有幾個工作日（週一～週五）。2026 年 11 月 = 21、12 月 = 23。不知道國定假日，假日照算 */
+  function workdaysInMonth(year, month0) {
+    return workdaysPassed(year, month0, 32);
+  }
+
   /* 本月總共賺了 = 已經過完的工作日 × 一個工作天的薪水 + 今天已賺（今天不是工作日就不算今天） */
   function monthEarned(dailyPay, passedWorkdays, earnedToday, todayIsWorkday) {
     if (!isFinite(dailyPay) || dailyPay < 0) return NaN;
@@ -180,6 +185,7 @@
   var api = {
     isWorkday: isWorkday,
     workdaysPassed: workdaysPassed,
+    workdaysInMonth: workdaysInMonth,
     monthEarned: monthEarned,
     recovery: recovery,
     parseTime: parseTime,
