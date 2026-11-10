@@ -138,7 +138,6 @@
     return false;
   }
 
-  var lastTick = 0;
   function render() {
     if (!model) return;
     var m = model;
@@ -158,15 +157,7 @@
     // 今天已賺
     setText(el.earnLabel, p.phase === "after" ? "今天總共賺了" : "今天已賺");
     var earnText = payOk ? C.formatMoney(earned, m.symbol, 3) : "—";
-    var prevEarn = el.earn.textContent;
-    if (setText(el.earn, earnText) && p.phase === "working" && prevEarn !== "—" && payOk && performance.now() - lastTick > 600) {
-      // 金額跳動的細微動畫（prefers-reduced-motion 時 CSS 會把動畫關掉）
-      // 每 0.6 秒最多觸發一次：畫面更新很頻繁時，每次都重播動畫會一直閃、看起來卡
-      lastTick = performance.now();
-      el.earn.classList.remove("tick");
-      void el.earn.offsetWidth;
-      el.earn.classList.add("tick");
-    }
+    setText(el.earn, earnText);  // 金額不做跳動動畫（更新很頻繁，動畫會一直閃）
 
     // 本月總共賺了 = 本月已過的工作日 × 一個工作天的薪水 + 今天已賺
     var daily = payOk ? m.perSec * m.workSec : NaN;
@@ -195,7 +186,8 @@
       var rpText = payOk ? C.formatNumber(rp, 3) : null;
       var rw = rp.toFixed(3) + "%";
       if (el.recoverFill.style.width !== rw) el.recoverFill.style.width = rw;
-      setText(el.recoverText, "把股票賺回來 " + (rpText === null ? "—" : rpText + "%"));
+      // 文字顯示「還差多少 %」= 100 − 已賺回的 %（進度條本身仍是已賺回的長度）
+      setText(el.recoverText, "距離把股票賺回來還有 " + (rpText === null ? "—" : C.formatNumber(100 - rp, 3) + "%"));
       el.recoverBar.setAttribute("aria-valuenow", rpText === null ? "0" : rpText);
     }
 
@@ -203,7 +195,7 @@
     var pctText = (m.workSec > 0 && m.timeOk) ? C.formatNumber(pct, 3) : null;
     var w = (pctText === null ? 0 : pct).toFixed(3) + "%";
     if (el.barFill.style.width !== w) el.barFill.style.width = w;
-    setText(el.barText, pctText === null ? "已工作 —" : "已工作 " + pctText + "%");
+    setText(el.barText, pctText === null ? "今天已工作 —" : "今天已工作 " + pctText + "%");
     el.bar.setAttribute("aria-valuenow", pctText === null ? "0" : pctText);
 
     // 每小時／每分鐘／每秒

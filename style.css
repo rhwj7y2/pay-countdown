@@ -131,15 +131,15 @@ body {
 }
 
 /* ---------- 看板：倒數、金額、進度 ---------- */
-.board { text-align: center; padding-top: 24px; padding-bottom: 20px; }
+/* 倒數、今天已賺、本月總共賺了三個數字用同一個大小（--num）。大小以最長的金額（例如 NT$ -842,490.281）塞得進手機寬度為準 */
+.board { --num: clamp(1.4rem, 7.6vw, 3rem); text-align: center; padding-top: 24px; padding-bottom: 20px; }
 .cd-label, .earn-label { margin: 0; color: var(--muted); font-size: .95rem; letter-spacing: .06em; }
 .cd {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-variant-numeric: tabular-nums;
-  font-size: clamp(1.9rem, 11.6vw, 4.2rem);  /* 多了 .x 秒，字元變多，字級略縮才不會超出手機寬度 */
+  font-size: var(--num);
   font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: .02em;
+  line-height: 1.2;
   color: var(--text);
   margin: 2px 0 18px;
   white-space: nowrap;
@@ -148,7 +148,7 @@ body {
 .earn {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-variant-numeric: tabular-nums;
-  font-size: clamp(1.7rem, 9vw, 2.6rem);
+  font-size: var(--num);
   font-weight: 800;
   line-height: 1.2;
   color: var(--accent-text);
@@ -160,7 +160,7 @@ body {
 .earn-month {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-variant-numeric: tabular-nums;
-  font-size: clamp(1.3rem, 6.6vw, 1.9rem); font-weight: 800; line-height: 1.2;
+  font-size: var(--num); font-weight: 800; line-height: 1.2;
   color: var(--text);
   margin: 2px 0 20px; overflow-wrap: anywhere;
 }
@@ -168,11 +168,6 @@ body {
    螢光綠：深色主題用最亮的螢光綠；淺色主題改用深一點的綠（太亮的綠放在淺色底上看不清楚） */
 .earn-month.down { color: var(--neon); text-shadow: 0 0 10px var(--neon-glow); }
 .earn-month.up { color: var(--up); text-shadow: 0 0 10px var(--up-glow); }
-.earn.tick { animation: tick .35s ease-out; }
-@keyframes tick {
-  0%   { transform: translateY(-2px); text-shadow: 0 0 14px var(--accent2); }
-  100% { transform: translateY(0);    text-shadow: 0 0 0 transparent; }
-}
 
 .progress { margin: 0 4px 18px; }
 .bar { height: 12px; background: var(--accent-soft); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
@@ -205,11 +200,8 @@ body {
   padding: 24px 4vw; overflow: hidden;
 }
 .board.fs .cd-label, .board.fs .earn-label { font-size: clamp(1rem, 3vh, 1.6rem); }
-.board.fs .cd { font-size: min(13vw, 24vh); margin: 0 0 4vh; }
-.board.fs .earn { font-size: min(8.6vw, 14vh); margin: 0 0 3vh; }
-.board.fs .earn { margin-bottom: 2vh; }
-.board.fs .earn-month { font-size: min(5.6vw, 8vh); }
-.board.fs .earn-month { margin-bottom: 3vh; }
+.board.fs { --num: min(8.4vw, 13vh); }  /* 全螢幕：三個數字一樣大，依螢幕寬高取較小的那個 */
+.board.fs .cd, .board.fs .earn, .board.fs .earn-month { margin: 0 0 2.5vh; }
 .board.fs .progress { width: min(90vw, 900px); margin: 0 0 2vh; }
 .board.fs .rates, .board.fs .hint { display: none; }
 .board.fs .fs-btn { font-size: .95rem; top: 16px; right: 16px; }
@@ -286,6 +278,5 @@ input[aria-invalid="true"] { border-color: var(--bad); }
 
 /* 系統設定「減少動畫」時，關掉金額跳動的動畫 */
 @media (prefers-reduced-motion: reduce) {
-  .earn.tick { animation: none; }
   * { transition: none !important; }
 }
