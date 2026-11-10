@@ -49,6 +49,7 @@
     cdLabel: $("cd-label"), cd: $("cd"), earnLabel: $("earn-label"), earn: $("earn"),
     bar: $("bar"), barFill: $("bar-fill"), barText: $("bar-text"),
     earnMonth: $("earn-month"),
+    recover: $("recover"), recoverBar: $("recover-bar"), recoverFill: $("recover-fill"), recoverText: $("recover-text"),
     loss: $("loss"), lossDays: $("loss-days"),
     rateH: $("rate-h"), rateM: $("rate-m"), rateD: $("rate-d"), hint: $("hint")
   };
@@ -178,14 +179,29 @@
     var lossAmt = isFinite(m.loss) && m.loss > 0 ? m.loss : 0;
     var monthNet = payOk ? monthEarn - lossAmt : NaN;
     setText(el.earnMonth, payOk ? C.formatMoney(monthNet, m.symbol, 3) : "—");
-
+    // 台股習慣：賺（正數）紅色，賠（負數）綠色；0 或沒有資料時用一般文字色
+    el.earnMonth.classList.toggle("up", payOk && monthNet > 0);
+    el.earnMonth.classList.toggle("down", payOk && monthNet < 0);
     // 股票賠錢區：用本月賺的錢去抵賠的，估算還要幾個工作天
     var rec = C.recovery(m.loss, daily, monthEarn);
     setText(el.lossDays, isFinite(rec.days) ? C.formatNumber(rec.days, 2) + " 天" : "—");
 
+    // 把股票賺回來的進度條：只有填了賠的金額才出現；百分比 = 本月已賺回 ÷ 賠的金額（0～100%）
+    // 本月總共賺了變成正數（已經賺回來）就不用再顯示
+    var showRecover = isFinite(m.loss) && m.loss > 0 && !(payOk && monthNet > 0);
+    if (el.recover.hidden === showRecover) el.recover.hidden = !showRecover;
+    if (showRecover) {
+      var rp = payOk ? Math.min(100, Math.max(0, rec.recovered / m.loss * 100)) : 0;
+      var rpText = payOk ? C.formatNumber(rp, 3) : null;
+      var rw = rp.toFixed(3) + "%";
+      if (el.recoverFill.style.width !== rw) el.recoverFill.style.width = rw;
+      setText(el.recoverText, "把股票賺回來 " + (rpText === null ? "—" : rpText + "%"));
+      el.recoverBar.setAttribute("aria-valuenow", rpText === null ? "0" : rpText);
+    }
+
     // 進度條
-    var pctText = (m.workSec > 0 && m.timeOk) ? C.formatNumber(pct, 1) : null;
-    var w = (pctText === null ? 0 : pct).toFixed(2) + "%";
+    var pctText = (m.workSec > 0 && m.timeOk) ? C.formatNumber(pct, 3) : null;
+    var w = (pctText === null ? 0 : pct).toFixed(3) + "%";
     if (el.barFill.style.width !== w) el.barFill.style.width = w;
     setText(el.barText, pctText === null ? "已工作 —" : "已工作 " + pctText + "%");
     el.bar.setAttribute("aria-valuenow", pctText === null ? "0" : pctText);

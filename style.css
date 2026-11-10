@@ -3,7 +3,8 @@
    所有顏色都走變數：--accent 給大字、進度條、邊框用；--accent-text 是比較深（對比夠）的版本，給小字用。 */
 :root {
   --radius: 16px;
-  --neon: #008f26; --neon-glow: rgba(0, 160, 40, .3);  /* 淺色主題的螢光綠 */
+  --neon: #008f26; --neon-glow: rgba(0, 160, 40, .3);  /* 淺色主題的螢光綠（賠） */
+  --up: #d4141c; --up-glow: rgba(212, 20, 28, .3);       /* 淺色主題的紅（賺，台股習慣） */
   /* 卡其（預設淺色） */
   --bg: #e9e4d4;
   --surface: #f4f0e4;
@@ -31,6 +32,7 @@
     --accent2: #8a929f;
     --bad: #ff8a80;
     --neon: #39ff14; --neon-glow: rgba(57, 255, 20, .5);
+    --up: #ff4040; --up-glow: rgba(255, 64, 64, .5);
     color-scheme: dark;
   }
 }
@@ -64,12 +66,14 @@
   --bg: #06080b; --surface: #0a0c10; --text: #eceff4; --muted: #9aa3b2; --line: #1f242d;
   --accent: #f2f4f8; --accent-text: #f2f4f8; --accent-soft: #1b1e24; --accent2: #8a929f; --bad: #ff8a80;
   --neon: #39ff14; --neon-glow: rgba(57, 255, 20, .5);
+  --up: #ff4040; --up-glow: rgba(255, 64, 64, .5);
   color-scheme: dark;
 }
 :root[data-theme="dark"] {
   --bg: #0f1218; --surface: #181c25; --text: #eceff4; --muted: #9aa3b2; --line: #2a303c;
   --accent: #eef1f6; --accent-text: #eef1f6; --accent-soft: #252b36; --accent2: #98a1b0; --bad: #ff8a80;
   --neon: #39ff14; --neon-glow: rgba(57, 255, 20, .5);
+  --up: #ff4040; --up-glow: rgba(255, 64, 64, .5);
   color-scheme: dark;
 }
 
@@ -157,11 +161,13 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-variant-numeric: tabular-nums;
   font-size: clamp(1.3rem, 6.6vw, 1.9rem); font-weight: 800; line-height: 1.2;
-  /* 螢光綠：深色主題用最亮的螢光綠；淺色主題改用深一點的綠（太亮的綠放在淺色底上看不清楚） */
-  color: var(--neon);
-  text-shadow: 0 0 10px var(--neon-glow);
+  color: var(--text);
   margin: 2px 0 20px; overflow-wrap: anywhere;
 }
+/* 台股習慣：賺錢（正數）是紅色，賠錢（負數）是綠色。
+   螢光綠：深色主題用最亮的螢光綠；淺色主題改用深一點的綠（太亮的綠放在淺色底上看不清楚） */
+.earn-month.down { color: var(--neon); text-shadow: 0 0 10px var(--neon-glow); }
+.earn-month.up { color: var(--up); text-shadow: 0 0 10px var(--up-glow); }
 .earn.tick { animation: tick .35s ease-out; }
 @keyframes tick {
   0%   { transform: translateY(-2px); text-shadow: 0 0 14px var(--accent2); }
@@ -171,6 +177,7 @@ body {
 .progress { margin: 0 4px 18px; }
 .bar { height: 12px; background: var(--accent-soft); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .bar-fill { height: 100%; width: 0; background: var(--accent); border-radius: 999px; }
+.recover .bar-fill { background: var(--neon); }  /* 把股票賺回來的進度條用螢光綠（賺回來變正數之後整條就不顯示） */
 .bar-text { margin: 6px 0 0; font-size: .9rem; color: var(--muted); }
 
 .rates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
