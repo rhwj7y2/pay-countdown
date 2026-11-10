@@ -54,6 +54,9 @@
       <p class="earn-label" id="earn-label">今天已賺</p>
       <div class="earn" id="earn" aria-live="off">—</div>
 
+      <p class="earn-label month-label">本月總共賺了</p>
+      <div class="earn-month" id="earn-month" aria-live="off">—</div>
+
       <div class="progress" aria-label="今日進度">
         <div class="bar" id="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="bar-fill" id="bar-fill"></div>
@@ -62,12 +65,22 @@
       </div>
 
       <dl class="rates" id="rates">
+        <div><dt>每天</dt><dd id="rate-d">—</dd></div>
         <div><dt>每小時</dt><dd id="rate-h">—</dd></div>
         <div><dt>每分鐘</dt><dd id="rate-m">—</dd></div>
-        <div><dt>每秒</dt><dd id="rate-s">—</dd></div>
       </dl>
 
       <p class="hint" id="hint" role="status" hidden></p>
+    </section>
+
+    <section class="card form stock" aria-label="股票賠錢區">
+      <h2>📉 股票賠錢區</h2>
+      <div class="field">
+        <label for="loss">賠了多少錢</label>
+        <input id="loss" type="number" inputmode="decimal" min="0" step="any" placeholder="例如 100000" autocomplete="off">
+      </div>
+      <p class="loss-label">只靠工作賺回來，還要約</p>
+      <div class="loss-days" id="loss-days" aria-live="off">—</div>
     </section>
 
     <section class="card form" aria-label="設定">

@@ -7,7 +7,7 @@
   var KEY = "paycountdown-settings";  // 輸入資料；主題另外存在 paycountdown-theme（在 index.html 裡處理）
   var DEFAULTS = {
     type: "monthly", amount: "0", start: "09:00", end: "18:00",
-    lunchOn: true, lunchStart: "12:00", lunchEnd: "13:00", days: "22", symbol: "NT$"
+    lunchOn: true, lunchStart: "12:00", lunchEnd: "13:00", days: "22", symbol: "NT$", loss: ""
   };
 
   function $(id) { return document.getElementById(id); }
@@ -48,7 +48,9 @@
     lunchOn: $("lunch-on"), lunchStart: $("lunch-start"), lunchEnd: $("lunch-end"),
     cdLabel: $("cd-label"), cd: $("cd"), earnLabel: $("earn-label"), earn: $("earn"),
     bar: $("bar"), barFill: $("bar-fill"), barText: $("bar-text"),
-    rateH: $("rate-h"), rateM: $("rate-m"), rateS: $("rate-s"), hint: $("hint")
+    earnMonth: $("earn-month"),
+    loss: $("loss"), lossDays: $("loss-days"),
+    rateH: $("rate-h"), rateM: $("rate-m"), rateD: $("rate-d"), hint: $("hint")
   };
   var typeRadios = document.querySelectorAll('input[name="type"]');
 
@@ -82,7 +84,7 @@
     return {
       type: type, amount: el.amount.value, start: el.start.value, end: el.end.value,
       lunchOn: el.lunchOn.checked, lunchStart: el.lunchStart.value, lunchEnd: el.lunchEnd.value,
-      days: el.days.value, symbol: el.symbol.value
+      days: el.days.value, symbol: el.symbol.value, loss: el.loss.value
     };
   }
 
@@ -90,7 +92,7 @@
     for (var i = 0; i < typeRadios.length; i++) typeRadios[i].checked = typeRadios[i].value === s.type;
     el.amount.value = s.amount; el.start.value = s.start; el.end.value = s.end;
     el.lunchOn.checked = s.lunchOn; el.lunchStart.value = s.lunchStart; el.lunchEnd.value = s.lunchEnd;
-    el.days.value = s.days; el.symbol.value = s.symbol;
+    el.days.value = s.days; el.symbol.value = s.symbol; el.loss.value = s.loss;
   }
 
   /* 把設定轉成計算用的數字；同時找出第一個要提示使用者的問題 */
@@ -115,6 +117,8 @@
     m.amount = amountRaw === "" ? NaN : Number(amountRaw);
     m.days = String(s.days).trim() === "" ? NaN : Number(s.days);
     m.perSec = C.perSecondPay(s.type, m.amount, m.days, m.workSec);
+    var lossRaw = String(s.loss).trim();
+    m.loss = lossRaw === "" ? NaN : Number(lossRaw);  // 空白或負數時，賠錢區顯示「—」
 
     if (!isFinite(m.start) || !isFinite(m.end)) m.hint = "請填入上班與下班時間。";
     else if (m.start === m.end) m.hint = "上班和下班時間不能一樣。";
@@ -163,6 +167,22 @@
       el.earn.classList.add("tick");
     }
 
+    // 本月總共賺了 = 本月已過的工作日 × 一個工作天的薪水 + 今天已賺
+    var daily = payOk ? m.perSec * m.workSec : NaN;
+    var ref = new Date(Date.now());
+    if (isFinite(p.t) && p.t >= 86400) ref.setDate(ref.getDate() - 1);  // 夜班過了午夜：這段薪水算在「昨天上班」那天
+    var y = ref.getFullYear(), mo = ref.getMonth(), dd = ref.getDate();
+    var passed = C.workdaysPassed(y, mo, dd), isWd = C.isWorkday(y, mo, dd);
+    var monthEarn = payOk ? C.monthEarned(daily, passed, earned, isWd) : NaN;
+    // 有填股票賠錢時：本月總共賺了 = 賺的 − 賠的，一開始是負的，隨著工作慢慢往 0、往正數走
+    var lossAmt = isFinite(m.loss) && m.loss > 0 ? m.loss : 0;
+    var monthNet = payOk ? monthEarn - lossAmt : NaN;
+    setText(el.earnMonth, payOk ? C.formatMoney(monthNet, m.symbol, 3) : "—");
+
+    // 股票賠錢區：用本月賺的錢去抵賠的，估算還要幾個工作天
+    var rec = C.recovery(m.loss, daily, monthEarn);
+    setText(el.lossDays, isFinite(rec.days) ? C.formatNumber(rec.days, 2) + " 天" : "—");
+
     // 進度條
     var pctText = (m.workSec > 0 && m.timeOk) ? C.formatNumber(pct, 1) : null;
     var w = (pctText === null ? 0 : pct).toFixed(2) + "%";
@@ -173,7 +193,7 @@
     // 每小時／每分鐘／每秒
     setText(el.rateH, payOk ? C.formatMoney(m.perSec * 3600, m.symbol, 2) : "—");
     setText(el.rateM, payOk ? C.formatMoney(m.perSec * 60, m.symbol, 2) : "—");
-    setText(el.rateS, payOk ? C.formatMoney(m.perSec, m.symbol, 2) : "—");
+    setText(el.rateD, payOk ? C.formatMoney(m.perSec * m.workSec, m.symbol, 2) : "—");  // 每天 = 一個工作天（扣掉午休）賺的
 
     // 分頁標題也跟著倒數
     var title = "下班倒數";

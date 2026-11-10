@@ -142,7 +142,46 @@
     return sym ? sym + " " + n : n;
   }
 
+  /* 這一天是不是工作日（週一～週五；不知道國定假日，所以假日照算工作日）。month0 是 0～11（跟 JS 的 Date 一樣） */
+  function isWorkday(year, month0, day) {
+    var wd = new Date(year, month0, day).getDay();  // 0 = 週日、6 = 週六
+    return wd !== 0 && wd !== 6;
+  }
+
+  /* 這個月從 1 號到「day 的前一天」之間，過了幾個工作日（不含 day 當天） */
+  function workdaysPassed(year, month0, day) {
+    var last = new Date(year, month0 + 1, 0).getDate();  // 這個月共幾天
+    var n = 0;
+    for (var d = 1; d < Math.min(day, last + 1); d++) if (isWorkday(year, month0, d)) n++;
+    return n;
+  }
+
+  /* 本月總共賺了 = 已經過完的工作日 × 一個工作天的薪水 + 今天已賺（今天不是工作日就不算今天） */
+  function monthEarned(dailyPay, passedWorkdays, earnedToday, todayIsWorkday) {
+    if (!isFinite(dailyPay) || dailyPay < 0) return NaN;
+    return dailyPay * passedWorkdays + (todayIsWorkday && isFinite(earnedToday) ? earnedToday : 0);
+  }
+
+  /* 股票賠錢區：用工作賺回來要幾天。
+     loss = 賠的金額，dailyPay = 一個工作天賺多少（每秒薪水 × 當天有薪秒數），earned = 已經賺了多少（App 傳的是「本月總共賺了」）。
+     recovered = 已賺回多少（最多等於 loss），remaining = 還差多少，
+     days = remaining ÷ dailyPay（還要約幾個工作天，小數表示不滿一天）。
+     loss 空白／負數／不是數字 → 全部 NaN；loss = 0 → 全部 0；dailyPay 不是正數（薪水 0 之類，永遠賺不回來）→ days 是 NaN */
+  function recovery(loss, dailyPay, earned) {
+    var bad = { recovered: NaN, remaining: NaN, days: NaN };
+    if (typeof loss !== "number" || !isFinite(loss) || loss < 0) return bad;
+    var e = isFinite(earned) && earned > 0 ? earned : 0;
+    var recovered = Math.min(e, loss);
+    var remaining = loss - recovered;
+    var days = remaining === 0 ? 0 : (isFinite(dailyPay) && dailyPay > 0 ? remaining / dailyPay : NaN);
+    return { recovered: recovered, remaining: remaining, days: days };
+  }
+
   var api = {
+    isWorkday: isWorkday,
+    workdaysPassed: workdaysPassed,
+    monthEarned: monthEarned,
+    recovery: recovery,
     parseTime: parseTime,
     secondsOfDay: secondsOfDay,
     workSeconds: workSeconds,

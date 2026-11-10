@@ -200,6 +200,77 @@ test("formatCountdown", () => {
   assert.equal(C.formatCountdown(NaN), "—");
 });
 
+test("isWorkday：2026-11 月（11/1 是週日）", () => {
+  assert.equal(C.isWorkday(2026, 10, 1), false);  // 週日
+  assert.equal(C.isWorkday(2026, 10, 2), true);   // 週一
+  assert.equal(C.isWorkday(2026, 10, 6), true);   // 週五
+  assert.equal(C.isWorkday(2026, 10, 7), false);  // 週六
+  assert.equal(C.isWorkday(2026, 10, 10), true);  // 週二
+});
+
+test("workdaysPassed：不含當天，只算週一到週五", () => {
+  assert.equal(C.workdaysPassed(2026, 10, 1), 0, "1 號之前沒有任何天");
+  assert.equal(C.workdaysPassed(2026, 10, 2), 0, "1 號是週日");
+  assert.equal(C.workdaysPassed(2026, 10, 3), 1, "到 11/3 之前只過了 11/2 一個工作日");
+  assert.equal(C.workdaysPassed(2026, 10, 11), 7, "11/2-6 五天 + 11/9、11/10 = 7");
+  assert.equal(C.workdaysPassed(2026, 10, 30), 20, "30 號之前共 20 個工作日（整月共 21 個）");
+  assert.equal(C.workdaysPassed(2026, 10, 99), 21, "超過月底不會多算");
+});
+
+test("monthEarned：已過工作日 × 日薪 + 今天", () => {
+  assert.equal(C.monthEarned(2000, 7, 500, true), 14500);
+  assert.equal(C.monthEarned(2000, 7, 500, false), 14000, "今天不是工作日 → 不算今天");
+  assert.equal(C.monthEarned(2000, 0, 0, true), 0);
+  assert.ok(Number.isNaN(C.monthEarned(NaN, 7, 0, true)));
+  assert.ok(Number.isNaN(C.monthEarned(-1, 7, 0, true)));
+});
+
+test("本月賺的拿去抵賠的：賠 2 萬、日薪 2000、本月已過 7 天 + 今天 500 → 還差 5500", () => {
+  const month = C.monthEarned(2000, 7, 500, true);
+  const r = C.recovery(20000, 2000, month);
+  assert.equal(r.recovered, 14500);
+  assert.equal(r.remaining, 5500);
+  near(r.days, 2.75, 1e-9);
+});
+
+test("recovery：賠 10 萬、日薪 2000 → 還要 50 天", () => {
+  const r = C.recovery(100000, 2000, 0);
+  assert.equal(r.days, 50);
+  assert.equal(r.remaining, 100000);
+  assert.equal(r.recovered, 0);
+});
+
+test("recovery：今天已賺的會先扣掉", () => {
+  const r = C.recovery(100000, 2000, 500);
+  assert.equal(r.recovered, 500);
+  assert.equal(r.remaining, 99500);
+  near(r.days, 49.75, 1e-9);
+});
+
+test("recovery：用月薪 50,000／22 天／8 小時算整天，賠 1 萬 ≈ 4.4 天", () => {
+  const pay = C.perSecondPay("monthly", 50000, 22, WORK);
+  const daily = pay * WORK;
+  near(C.recovery(10000, daily, 0).days, 10000 / (50000 / 22), 1e-9);
+  near(C.recovery(10000, daily, 0).days, 4.4, 1e-9);
+});
+
+test("recovery：今天已賺比賠的多 → 已賺回，0 天，recovered 不超過 loss", () => {
+  const r = C.recovery(1000, 2000, 1500);
+  assert.equal(r.recovered, 1000);
+  assert.equal(r.remaining, 0);
+  assert.equal(r.days, 0);
+});
+
+test("recovery：賠 0 → 全 0；空白、負數、不是數字 → NaN；日薪 0 → days NaN", () => {
+  assert.deepEqual(C.recovery(0, 2000, 0), { recovered: 0, remaining: 0, days: 0 });
+  assert.ok(Number.isNaN(C.recovery(NaN, 2000, 0).days));
+  assert.ok(Number.isNaN(C.recovery(-5, 2000, 0).days));
+  const z = C.recovery(1000, 0, 0);
+  assert.equal(z.remaining, 1000);
+  assert.ok(Number.isNaN(z.days));
+  assert.ok(Number.isNaN(C.recovery(1000, NaN, 0).days));
+});
+
 test("formatCountdown：秒後面帶 0.1 秒（小數位 1 位）", () => {
   assert.equal(C.formatCountdown(0, 1), "00:00:00.0");
   assert.equal(C.formatCountdown(3661.25, 1), "01:01:01.3", "0.25 秒進位成 0.3");

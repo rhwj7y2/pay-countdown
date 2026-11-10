@@ -3,6 +3,7 @@
    所有顏色都走變數：--accent 給大字、進度條、邊框用；--accent-text 是比較深（對比夠）的版本，給小字用。 */
 :root {
   --radius: 16px;
+  --neon: #008f26; --neon-glow: rgba(0, 160, 40, .3);  /* 淺色主題的螢光綠 */
   /* 卡其（預設淺色） */
   --bg: #e9e4d4;
   --surface: #f4f0e4;
@@ -29,6 +30,7 @@
     --accent-soft: #1b1e24;
     --accent2: #8a929f;
     --bad: #ff8a80;
+    --neon: #39ff14; --neon-glow: rgba(57, 255, 20, .5);
     color-scheme: dark;
   }
 }
@@ -61,11 +63,13 @@
 :root[data-theme="black"] {
   --bg: #06080b; --surface: #0a0c10; --text: #eceff4; --muted: #9aa3b2; --line: #1f242d;
   --accent: #f2f4f8; --accent-text: #f2f4f8; --accent-soft: #1b1e24; --accent2: #8a929f; --bad: #ff8a80;
+  --neon: #39ff14; --neon-glow: rgba(57, 255, 20, .5);
   color-scheme: dark;
 }
 :root[data-theme="dark"] {
   --bg: #0f1218; --surface: #181c25; --text: #eceff4; --muted: #9aa3b2; --line: #2a303c;
   --accent: #eef1f6; --accent-text: #eef1f6; --accent-soft: #252b36; --accent2: #98a1b0; --bad: #ff8a80;
+  --neon: #39ff14; --neon-glow: rgba(57, 255, 20, .5);
   color-scheme: dark;
 }
 
@@ -147,6 +151,17 @@ body {
   margin: 2px 0 20px;
   overflow-wrap: anywhere;
 }
+.earn { margin-bottom: 14px; }
+.month-label { margin-top: 2px; }
+.earn-month {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.3rem, 6.6vw, 1.9rem); font-weight: 800; line-height: 1.2;
+  /* 螢光綠：深色主題用最亮的螢光綠；淺色主題改用深一點的綠（太亮的綠放在淺色底上看不清楚） */
+  color: var(--neon);
+  text-shadow: 0 0 10px var(--neon-glow);
+  margin: 2px 0 20px; overflow-wrap: anywhere;
+}
 .earn.tick { animation: tick .35s ease-out; }
 @keyframes tick {
   0%   { transform: translateY(-2px); text-shadow: 0 0 14px var(--accent2); }
@@ -185,9 +200,24 @@ body {
 .board.fs .cd-label, .board.fs .earn-label { font-size: clamp(1rem, 3vh, 1.6rem); }
 .board.fs .cd { font-size: min(13vw, 24vh); margin: 0 0 4vh; }
 .board.fs .earn { font-size: min(8.6vw, 14vh); margin: 0 0 3vh; }
+.board.fs .earn { margin-bottom: 2vh; }
+.board.fs .earn-month { font-size: min(5.6vw, 8vh); }
+.board.fs .earn-month { margin-bottom: 3vh; }
 .board.fs .progress { width: min(90vw, 900px); margin: 0 0 2vh; }
 .board.fs .rates, .board.fs .hint { display: none; }
 .board.fs .fs-btn { font-size: .95rem; top: 16px; right: 16px; }
+
+/* ---------- 股票賠錢區 ---------- */
+.stock { text-align: center; }
+.stock h2 { text-align: left; }
+.stock .field { text-align: left; margin-bottom: 14px; }
+.loss-label { margin: 0; color: var(--muted); font-size: .95rem; letter-spacing: .06em; }
+.loss-days {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.9rem, 10vw, 3rem); font-weight: 800; line-height: 1.2;
+  color: var(--accent-text); margin: 2px 0 0; overflow-wrap: anywhere;
+}
 
 .hint {
   margin: 14px 0 0; padding: 8px 12px;
