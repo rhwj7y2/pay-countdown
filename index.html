@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>下班倒數</title>
+  <meta name="description" content="輸入薪水和上下班時間，即時看到距離下班還有多久、今天已經賺了多少。">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    // 主題：邏輯放在網頁檔自己裡面（不放在 app.js），這樣就算 app.js 還沒載入，主題按鈕也點得動
+    // 之前選過的主題：在畫面出來之前先套上，才不會先閃一下預設顏色
+    // localStorage 的 key 用自己的 "paycountdown-theme"，同一個網域下別的專案（例如 nba-theme）不會互相蓋掉
+    try { var t = localStorage.getItem("paycountdown-theme"); if (/^(white|khaki|pink|teal|blue|dark|black)$/.test(t)) document.documentElement.setAttribute("data-theme", t); } catch (e) {}
+    // 目前生效的主題：選過的，沒選過就跟系統（淺色 = 卡其、深色 = 黑色）；按鈕的亮起也在這裡處理
+    window.payMarkTheme = function () {
+      var cur = document.documentElement.getAttribute("data-theme") ||
+        (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "black" : "khaki");
+      var bs = document.querySelectorAll("#theme-pick .tp-btn");
+      for (var i = 0; i < bs.length; i++) bs[i].setAttribute("aria-pressed", bs[i].getAttribute("data-t") === cur ? "true" : "false");
+    };
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("#theme-pick .tp-btn") : null;
+      if (!b) return;
+      var t = b.getAttribute("data-t");
+      document.documentElement.setAttribute("data-theme", t);
+      try { localStorage.setItem("paycountdown-theme", t); } catch (err) { /* 瀏覽器不讓存就只有這次有效 */ }
+      window.payMarkTheme();
+    });
+    document.addEventListener("DOMContentLoaded", window.payMarkTheme);
+  </script>
+</head>
+<body>
+  <main class="wrap">
+
+    <header class="hero">
+      <h1><span class="logo">⏳</span>下班倒數</h1>
+      <div class="theme-pick" id="theme-pick" role="group" aria-label="選擇主題">
+        <span class="tp-label">主題</span>
+        <button type="button" class="tp-btn" data-t="white" aria-pressed="false"><span class="tp-dot"></span>白色</button>
+        <button type="button" class="tp-btn" data-t="khaki" aria-pressed="false"><span class="tp-dot"></span>卡其</button>
+        <button type="button" class="tp-btn" data-t="pink" aria-pressed="false"><span class="tp-dot"></span>粉色</button>
+        <button type="button" class="tp-btn" data-t="teal" aria-pressed="false"><span class="tp-dot"></span>藍綠</button>
+        <button type="button" class="tp-btn" data-t="blue" aria-pressed="false"><span class="tp-dot"></span>淺藍</button>
+        <button type="button" class="tp-btn" data-t="dark" aria-pressed="false"><span class="tp-dot"></span>深色</button>
+        <button type="button" class="tp-btn" data-t="black" aria-pressed="false"><span class="tp-dot"></span>黑色</button>
+      </div>
+    </header>
+
+    <section class="board card" id="board" aria-label="倒數與收入">
+      <button type="button" class="fs-btn" id="fs-btn" aria-pressed="false">⛶ 全螢幕</button>
+      <p class="cd-label" id="cd-label">距離下班還有</p>
+      <div class="cd" id="cd" aria-live="off">--:--:--.--</div>
+
+      <p class="earn-label" id="earn-label">今天已賺</p>
+      <div class="earn" id="earn" aria-live="off">—</div>
+
+      <div class="progress" aria-label="今日進度">
+        <div class="bar" id="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="bar-fill" id="bar-fill"></div>
+        </div>
+        <p class="bar-text" id="bar-text" aria-live="off">已工作 0.0%</p>
+      </div>
+
+      <dl class="rates" id="rates">
+        <div><dt>每小時</dt><dd id="rate-h">—</dd></div>
+        <div><dt>每分鐘</dt><dd id="rate-m">—</dd></div>
+        <div><dt>每秒</dt><dd id="rate-s">—</dd></div>
+      </dl>
+
+      <p class="hint" id="hint" role="status" hidden></p>
+    </section>
+
+    <section class="card form" aria-label="設定">
+      <h2>設定</h2>
+
+      <fieldset class="seg" id="seg-type">
+        <legend>薪資類型</legend>
+        <label class="seg-opt"><input type="radio" name="type" value="monthly" checked><span>月薪</span></label>
+        <label class="seg-opt"><input type="radio" name="type" value="hourly"><span>時薪</span></label>
+      </fieldset>
+
+      <div class="grid">
+        <div class="field">
+          <label for="amount" id="amount-label">月薪</label>
+          <input id="amount" type="number" inputmode="decimal" min="0" step="any" placeholder="例如 50000" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="symbol">貨幣符號</label>
+          <input id="symbol" type="text" maxlength="8" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="start-h">上班時間</label>
+          <div class="time" id="start" data-default="09:00"></div>
+        </div>
+        <div class="field">
+          <label for="end-h">下班時間</label>
+          <div class="time" id="end" data-default="18:00"></div>
+        </div>
+        <div class="field" id="field-days">
+          <label for="days">每月工作天數</label>
+          <input id="days" type="number" inputmode="numeric" min="1" max="31" step="1" value="22">
+        </div>
+      </div>
+
+      <div class="lunch">
+        <label class="check"><input id="lunch-on" type="checkbox" checked><span>扣除午休（午休期間薪水不增加）</span></label>
+        <div class="grid" id="lunch-fields">
+          <div class="field">
+            <label for="lunch-start-h">午休開始</label>
+            <div class="time" id="lunch-start" data-default="12:00"></div>
+          </div>
+          <div class="field">
+            <label for="lunch-end-h">午休結束</label>
+            <div class="time" id="lunch-end" data-default="13:00"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+  <script src="calc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

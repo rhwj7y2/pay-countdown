@@ -1,0 +1,247 @@
+/* 下班倒數：畫面與互動。所有計算都在 calc.js（純函式），這裡只負責「讀輸入 → 呼叫計算 → 把結果放到畫面上」。
+   每次更新都用 Date.now() 重新算，不做「每秒加一」的累加，所以分頁在背景被降速、電腦睡眠醒來後數字都還是對的。 */
+(function () {
+  "use strict";
+
+  var C = window.PayCalc;
+  var KEY = "paycountdown-settings";  // 輸入資料；主題另外存在 paycountdown-theme（在 index.html 裡處理）
+  var DEFAULTS = {
+    type: "monthly", amount: "0", start: "09:00", end: "18:00",
+    lunchOn: true, lunchStart: "12:00", lunchEnd: "13:00", days: "22", symbol: "NT$"
+  };
+
+  function $(id) { return document.getElementById(id); }
+
+  /* 24 小時制時間選擇：把 <div class="time"> 變成「時」「分」兩個下拉選單，
+     並讓這個 div 像一般欄位一樣有 .value（"HH:MM"）和 .disabled 可以讀寫 */
+  function makeTime(box) {
+    function sel(id, max, label) {
+      var s = document.createElement("select");
+      s.id = id; s.setAttribute("aria-label", label);
+      for (var i = 0; i < max; i++) {
+        var o = document.createElement("option");
+        o.value = o.textContent = (i < 10 ? "0" : "") + i;
+        s.appendChild(o);
+      }
+      return s;
+    }
+    var name = box.getAttribute("aria-label") || (document.querySelector('label[for="' + box.id + '-h"]') || {}).textContent || "";
+    var h = sel(box.id + "-h", 24, name + " 時"), m = sel(box.id + "-m", 60, name + " 分");
+    var colon = document.createElement("span"); colon.className = "colon"; colon.textContent = ":";
+    box.appendChild(h); box.appendChild(colon); box.appendChild(m);
+    Object.defineProperty(box, "value", {
+      get: function () { return h.value + ":" + m.value; },
+      set: function (v) {
+        var p = /^(\d{1,2}):(\d{2})/.exec(String(v));
+        if (p && +p[1] < 24 && +p[2] < 60) { h.value = ("0" + +p[1]).slice(-2); m.value = p[2]; }
+      }
+    });
+    Object.defineProperty(box, "disabled", { get: function () { return h.disabled; }, set: function (v) { h.disabled = m.disabled = !!v; } });
+    box.value = box.getAttribute("data-default") || "00:00";
+  }
+  var timeBoxes = document.querySelectorAll(".time");
+  for (var tb = 0; tb < timeBoxes.length; tb++) makeTime(timeBoxes[tb]);
+
+  var el = {
+    amount: $("amount"), amountLabel: $("amount-label"), symbol: $("symbol"),
+    start: $("start"), end: $("end"), days: $("days"), fieldDays: $("field-days"),
+    lunchOn: $("lunch-on"), lunchStart: $("lunch-start"), lunchEnd: $("lunch-end"),
+    cdLabel: $("cd-label"), cd: $("cd"), earnLabel: $("earn-label"), earn: $("earn"),
+    bar: $("bar"), barFill: $("bar-fill"), barText: $("bar-text"),
+    rateH: $("rate-h"), rateM: $("rate-m"), rateS: $("rate-s"), hint: $("hint")
+  };
+  var typeRadios = document.querySelectorAll('input[name="type"]');
+
+  /* ---------- 存取（localStorage 一律包 try/catch；讀不到就用預設值） ---------- */
+  function load() {
+    var s = {};
+    for (var k in DEFAULTS) s[k] = DEFAULTS[k];
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var o = JSON.parse(raw);
+        if (o && typeof o === "object") {
+          for (var key in DEFAULTS) {
+            if (typeof o[key] === typeof DEFAULTS[key]) s[key] = o[key];
+          }
+          if (s.type !== "monthly" && s.type !== "hourly") s.type = "monthly";
+        }
+      }
+    } catch (e) { /* 讀不到（私密模式、資料壞掉）→ 用預設值 */ }
+    return s;
+  }
+
+  function save(s) {
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* 存不了就只有這次有效 */ }
+  }
+
+  /* ---------- 畫面上的欄位 ⇄ 設定物件 ---------- */
+  function readForm() {
+    var type = "monthly";
+    for (var i = 0; i < typeRadios.length; i++) if (typeRadios[i].checked) type = typeRadios[i].value;
+    return {
+      type: type, amount: el.amount.value, start: el.start.value, end: el.end.value,
+      lunchOn: el.lunchOn.checked, lunchStart: el.lunchStart.value, lunchEnd: el.lunchEnd.value,
+      days: el.days.value, symbol: el.symbol.value
+    };
+  }
+
+  function writeForm(s) {
+    for (var i = 0; i < typeRadios.length; i++) typeRadios[i].checked = typeRadios[i].value === s.type;
+    el.amount.value = s.amount; el.start.value = s.start; el.end.value = s.end;
+    el.lunchOn.checked = s.lunchOn; el.lunchStart.value = s.lunchStart; el.lunchEnd.value = s.lunchEnd;
+    el.days.value = s.days; el.symbol.value = s.symbol;
+  }
+
+  /* 把設定轉成計算用的數字；同時找出第一個要提示使用者的問題 */
+  var model = null;
+  function buildModel(s) {
+    var m = { type: s.type, symbol: s.symbol, hint: "" };
+    m.start = C.parseTime(s.start);
+    m.end = C.parseTime(s.end);
+    m.timeOk = isFinite(m.start) && isFinite(m.end) && m.start !== m.end;
+
+    m.lunch = null;
+    var lunchBad = false;
+    if (s.lunchOn) {
+      var ls = C.parseTime(s.lunchStart), le = C.parseTime(s.lunchEnd);
+      if (isFinite(ls) && isFinite(le)) m.lunch = { start: ls, end: le };
+      else lunchBad = true;
+    }
+
+    m.workSec = m.timeOk ? C.workSeconds(m.start, m.end, m.lunch ? m.lunch.start : NaN, m.lunch ? m.lunch.end : NaN) : 0;
+
+    var amountRaw = String(s.amount).trim();
+    m.amount = amountRaw === "" ? NaN : Number(amountRaw);
+    m.days = String(s.days).trim() === "" ? NaN : Number(s.days);
+    m.perSec = C.perSecondPay(s.type, m.amount, m.days, m.workSec);
+
+    if (!isFinite(m.start) || !isFinite(m.end)) m.hint = "請填入上班與下班時間。";
+    else if (m.start === m.end) m.hint = "上班和下班時間不能一樣。";
+    else if (m.workSec <= 0) m.hint = "午休時間涵蓋了整個上班時段，請調整午休。";
+    else if (lunchBad) m.hint = "午休時間請填完整，或取消勾選「扣除午休」。";
+    else if (amountRaw === "") m.hint = "請輸入" + (s.type === "hourly" ? "時薪" : "月薪") + "，就能看到今天賺了多少。";
+    else if (!isFinite(m.amount) || m.amount < 0) m.hint = "薪水要是 0 或正數。";
+    else if (s.type === "monthly" && !(m.days > 0)) m.hint = "每月工作天數要大於 0。";
+
+    return m;
+  }
+
+  /* ---------- 畫面更新 ---------- */
+  function setText(node, text) {
+    if (node.textContent !== text) { node.textContent = text; return true; }
+    return false;
+  }
+
+  var lastTick = 0;
+  function render() {
+    if (!model) return;
+    var m = model;
+    var nowSec = C.secondsOfDay(new Date(Date.now()));  // 每次都重新讀現在時間
+    var p = m.timeOk ? C.phaseAt(nowSec, m.start, m.end) : { phase: "invalid", remaining: NaN };
+    var worked = m.timeOk ? C.workedSeconds(nowSec, m.start, m.end, m.lunch) : 0;
+    var pct = m.workSec > 0 ? Math.min(100, Math.max(0, worked / m.workSec * 100)) : 0;
+    var payOk = isFinite(m.perSec) && m.timeOk && m.workSec > 0;
+    var earned = payOk ? m.perSec * worked : NaN;
+
+    // 倒數
+    var cdText = C.formatCountdown(p.remaining);            // 分頁標題用整秒
+    setText(el.cd, C.formatCountdown(p.remaining, 2));      // 畫面上的倒數到 0.01 秒
+    el.cd.classList.toggle("done", p.phase === "after");
+    setText(el.cdLabel, p.phase === "before" ? "距離上班還有" : p.phase === "after" ? "下班了！" : "距離下班還有");
+
+    // 今天已賺
+    setText(el.earnLabel, p.phase === "after" ? "今天總共賺了" : "今天已賺");
+    var earnText = payOk ? C.formatMoney(earned, m.symbol, 3) : "—";
+    var prevEarn = el.earn.textContent;
+    if (setText(el.earn, earnText) && p.phase === "working" && prevEarn !== "—" && payOk && performance.now() - lastTick > 600) {
+      // 金額跳動的細微動畫（prefers-reduced-motion 時 CSS 會把動畫關掉）
+      // 每 0.6 秒最多觸發一次：畫面更新很頻繁時，每次都重播動畫會一直閃、看起來卡
+      lastTick = performance.now();
+      el.earn.classList.remove("tick");
+      void el.earn.offsetWidth;
+      el.earn.classList.add("tick");
+    }
+
+    // 進度條
+    var pctText = (m.workSec > 0 && m.timeOk) ? C.formatNumber(pct, 1) : null;
+    var w = (pctText === null ? 0 : pct).toFixed(2) + "%";
+    if (el.barFill.style.width !== w) el.barFill.style.width = w;
+    setText(el.barText, pctText === null ? "已工作 —" : "已工作 " + pctText + "%");
+    el.bar.setAttribute("aria-valuenow", pctText === null ? "0" : pctText);
+
+    // 每小時／每分鐘／每秒
+    setText(el.rateH, payOk ? C.formatMoney(m.perSec * 3600, m.symbol, 2) : "—");
+    setText(el.rateM, payOk ? C.formatMoney(m.perSec * 60, m.symbol, 2) : "—");
+    setText(el.rateS, payOk ? C.formatMoney(m.perSec, m.symbol, 2) : "—");
+
+    // 分頁標題也跟著倒數
+    var title = "下班倒數";
+    if (p.phase === "working") title = "⏳ " + cdText + " 下班倒數";
+    else if (p.phase === "before") title = "⏳ " + cdText + " 距離上班";
+    else if (p.phase === "after") title = "🎉 下班了！下班倒數";
+    if (document.title !== title) document.title = title;
+
+  }
+
+  /* ---------- 全螢幕 ----------
+     先用瀏覽器的全螢幕功能；iPhone 的 Safari 不支援「讓一般區塊全螢幕」，就改用 CSS 讓區塊蓋滿整個視窗 */
+  var board = $("board"), fsBtn = $("fs-btn");
+  function setFs(on) {
+    board.classList.toggle("fs", on);
+    fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    fsBtn.textContent = on ? "✕ 離開全螢幕" : "⛶ 全螢幕";
+  }
+  fsBtn.addEventListener("click", function () {
+    if (board.classList.contains("fs")) {
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+      setFs(false);
+      return;
+    }
+    setFs(true);
+    if (board.requestFullscreen) {
+      try { var r = board.requestFullscreen(); if (r && r.catch) r.catch(function () {}); } catch (e) {}
+    }
+  });
+  // 按 Esc 離開瀏覽器全螢幕時，把畫面也還原
+  document.addEventListener("fullscreenchange", function () {
+    if (!document.fullscreenElement && board.classList.contains("fs")) setFs(false);
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && board.classList.contains("fs")) setFs(false); });
+
+  /* 輸入改變：重新解析、存起來、更新欄位顯示狀態、立刻重畫 */
+  function onChange() {
+    var s = readForm();
+    save(s);
+    model = buildModel(s);
+
+    var hourly = s.type === "hourly";
+    el.amountLabel.textContent = hourly ? "時薪" : "月薪";
+    el.amount.placeholder = hourly ? "例如 200" : "例如 50000";
+    el.fieldDays.hidden = hourly;
+    el.lunchStart.disabled = el.lunchEnd.disabled = !s.lunchOn;
+
+    el.hint.hidden = !model.hint;
+    el.hint.textContent = model.hint;
+    var amountBad = String(s.amount).trim() !== "" && (!isFinite(model.amount) || model.amount < 0);
+    el.amount.setAttribute("aria-invalid", amountBad ? "true" : "false");
+
+    render();
+  }
+
+  /* ---------- 啟動 ---------- */
+  writeForm(load());
+  document.addEventListener("input", function (e) { if (e.target.closest && e.target.closest(".form")) onChange(); });
+  document.addEventListener("change", function (e) { if (e.target.closest && e.target.closest(".form")) onChange(); });
+  onChange();
+
+  // 畫面跟著螢幕的更新頻率重畫（通常每秒 60 次），倒數的 0.01 秒才會順；requestAnimationFrame 是瀏覽器「下一次要畫畫面前」叫我們的機制
+  function frame() { render(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+  // 分頁在背景時瀏覽器會暫停 requestAnimationFrame，用較慢的計時器讓分頁標題繼續更新
+  setInterval(function () { if (document.hidden) render(); }, 1000);
+  // 分頁從背景切回來、電腦睡眠醒來：立刻用現在時間重算，不等下一次 setInterval
+  document.addEventListener("visibilitychange", render);
+  window.addEventListener("focus", render);
+  window.addEventListener("pageshow", render);
+})();
